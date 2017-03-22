@@ -7,7 +7,7 @@ import pickle
 import glob
 from skimage.feature import hog
 from skimage import color, exposure
-import hog
+import features
 
 # pipline output images
 path_image  = "test_images/"
@@ -33,12 +33,13 @@ if __name__ == "__main__":
     notcars = glob.glob('data/non-vehicles/**/*.png')
 
     data_info = data_look(cars, notcars)
-    # Just for fun choose random car / not-car indices and plot example images   
     car_ind     = np.random.randint(0, len(cars))
     notcar_ind  = np.random.randint(0, len(notcars))
+#    car_ind = 0
+#    notcar_ind = 0
         
-    # Read in car / not-car images
-    car_image = mpimg.imread(cars[car_ind])
+    # Read in car / not-car image
+    car_image    = mpimg.imread(cars[car_ind])
     notcar_image = mpimg.imread(notcars[notcar_ind])
 
     # Plot the examples
@@ -53,11 +54,24 @@ if __name__ == "__main__":
     plt.show()
     plt.close()
 
-    car_image *=255
-    notcar_image *=255
+    # scale accordently
+    car_image       *=255
+    notcar_image    *=255
 
-    rh_car, gh_car, bh_car, bincen_car, feature_vec_car = hog.color_hist(car_image, nbins=32, bins_range=(0, 256))
-    rh_noncar, gh_noncar, bh_noncar, bincen_noncar, feature_vec_noncar = hog.color_hist(notcar_image, nbins=32, bins_range=(0, 256))
+    bin_feature_car     = features.bin_spatial(car_image)
+    bin_feature_noncar  = features.bin_spatial(notcar_image)
+    plt.subplot(121)
+    plt.plot(bin_feature_car)
+    plt.title('Spatially binned feature (Car)')
+    plt.subplot(122)
+    plt.plot(bin_feature_noncar)
+    plt.title('Spatially binned feature (Not a car)')
+    plt.savefig(path_out+"random_car_noncar_bin_feature.jpg")
+    plt.show()
+    plt.close()
+
+    rh_car, gh_car, bh_car, bincen_car, feature_vec_car = features.color_hist2(car_image, nbins=32, bins_range=(0, 256))
+    rh_noncar, gh_noncar, bh_noncar, bincen_noncar, feature_vec_noncar = features.color_hist2(notcar_image, nbins=32, bins_range=(0, 256))
 
     # plot car and non car histograms
     fig = plt.figure(figsize=(12,3))
@@ -90,55 +104,87 @@ if __name__ == "__main__":
     plt.show()
     plt.close()
 
-    feature = hog.combine_features(car_image)
-    X, scaled_X  = hog.normalize_features([feature])
+    orient          = 9
+    pix_per_cell    = 8
+    cell_per_block  = 2
+
+    color_spaces = ['RGB2YCrCb']
+    color_spaces += ['LUV']
+    color_spaces += ['RGB']
+    color_spaces += ['HSV']
+    color_spaces += ['HLS']
+    color_spaces += ['YUV']
+    for color_space in color_spaces:
+        print(color_space)
+        img_hog    = features.color_transform(np.copy(car_image), color_space=color_space)
+
+        ch1 = img_hog[:,:,0]
+        ch2 = img_hog[:,:,1]
+        ch3 = img_hog[:,:,2]
+
+        features_vec, hog_feat1 = hog(ch1, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell), cells_per_block=(cell_per_block, cell_per_block), visualise=True, feature_vector=True)
+        features_vec, hog_feat2 = hog(ch2, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell), cells_per_block=(cell_per_block, cell_per_block), visualise=True, feature_vector=True)
+        features_vec, hog_feat3 = hog(ch3, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell), cells_per_block=(cell_per_block, cell_per_block), visualise=True, feature_vector=True)
+        # Plot the examples
+        fig = plt.figure(figsize=(12,4))
+        plt.subplot(241)
+        plt.imshow(car_image/255, cmap='gray')
+        plt.title('Car Image')
+        plt.subplot(242)
+        plt.imshow(hog_feat1, cmap='gray')
+        plt.title('HOG channel 1')
+        plt.subplot(243)
+        plt.imshow(hog_feat2, cmap='gray')
+        plt.title('HOG channel 2')
+        plt.subplot(244)
+        plt.imshow(hog_feat3, cmap='gray')
+        plt.title('HOG channel 3')
+
+        img_hog    = features.color_transform(np.copy(notcar_image), color_space=color_space)
+
+        ch1 = img_hog[:,:,0]
+        ch2 = img_hog[:,:,1]
+        ch3 = img_hog[:,:,2]
+
+        features_vec, hog_feat1 = hog(ch1, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell), cells_per_block=(cell_per_block, cell_per_block), visualise=True, feature_vector=True)
+        features_vec, hog_feat2 = hog(ch2, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell), cells_per_block=(cell_per_block, cell_per_block), visualise=True, feature_vector=True)
+        features_vec, hog_feat3 = hog(ch3, orientations=orient, pixels_per_cell=(pix_per_cell, pix_per_cell), cells_per_block=(cell_per_block, cell_per_block), visualise=True, feature_vector=True)
+
+        plt.subplot(245)
+        plt.imshow(notcar_image/255, cmap='gray')
+        plt.title('Not Car Image')
+        plt.subplot(246)
+        plt.imshow(hog_feat1, cmap='gray')
+        plt.title('HOG channel 1')
+        plt.subplot(247)
+        plt.imshow(hog_feat2, cmap='gray')
+        plt.title('HOG channel 2')
+        plt.subplot(248)
+        plt.imshow(hog_feat3, cmap='gray')
+        plt.title('HOG channel 3')
+        
+        fig.tight_layout()
+        plt.savefig(path_out+"skimage_hog"+color_space+".jpg")
+        plt.show()
+        plt.close()
+
+    car_features     = features.features_from_img_list(cars, color_space='RGB2YCrCb')
+    notcar_features  = features.features_from_img_list(notcars, color_space='RGB2YCrCb')
+
+    X, scaled_X      = features.normalize_features((car_features))
 
     # Plot an example of raw and scaled features
     fig = plt.figure(figsize=(12,4))
     plt.subplot(131)
-    plt.imshow(car_image)
+    plt.imshow(car_image/255)
     plt.title('Original Image')
     plt.subplot(132)
-    plt.plot(X[0])
+    plt.plot(X[car_ind])
     plt.title('Raw Features')
     plt.subplot(133)
-    plt.plot(scaled_X[0])
+    plt.plot(scaled_X[car_ind])
     plt.title('Normalized Features')
     fig.tight_layout()
-    plt.show()
     plt.savefig(path_out+"normalized_features.jpg")
+    plt.show()
     plt.close()
-
-#    for image in os.listdir(path_image):
-#        path_image   = "test_images/"
-#        image        = "perspectivestraight_lines1.jpg"
-#        image        = "perspectivestraight_lines2.jpg"
-#        image        = "perspective_origtest5.jpg"
-#        image        = "signs.png"
-#        image        = "test5.jpg"
-#        image        = "straight_lines1.jpg"
-#        image        = "perspectivetest5.jpg"
-#        plt_img      = mpimg.imread(path_image+image)
-#        img          = cv2.imread(path_image+image)
-
-#        plt.imshow(stack2, cmap='gray')
-#        plt.show()
-
-#        plt.imshow(color_binary, cmap='gray')
-#        plt.show()
-#        plt.title(image)
-#        plt.imshow(combined, cmap='gray')
-#        f, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-#        f.tight_layout()
-#        ax1.imshow(plt_img)
-#        ax1.set_title('Original Image ' + image , fontsize=12)
-#        ax2.imshow(plt_img, cmap='gray')
-#        ax2.set_title('Thresholded', fontsize=12)
-#        plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
-#        plt.imshow(combined2, cmap='gray')
-#        plt.imshow(combined)
-#        plt.imshow(dir_binary, cmap='gray')
-#        plt.imshow(combined, cmap='gray')
-#        plt.savefig('test.jpg')
-#        plt.show()
-
