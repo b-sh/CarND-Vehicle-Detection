@@ -30,7 +30,7 @@ A list of traning images is collected in module "train.py" (L:48-49) calling fea
 
 Example of training set images:
 
-![example](output_images/example_data.jpg)
+![example](output_images/examples_data.jpg)
 
 The module features.py (L:114-135) is reading the "png" files, tranforming to choosen color space "YCrCb" and extracting features.
 
