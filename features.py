@@ -115,7 +115,7 @@ def features_from_img_list(img_list, color_space='RGB2YCrCb', size=(32,32), orie
     features        = []
 
     for img in img_list:
-        image   = mpimg.imread(img).astype(np.float32)*255
+        image   = mpimg.imread(img)*255
 
         img     = color_transform(np.copy(image), color_space=color_space)
 

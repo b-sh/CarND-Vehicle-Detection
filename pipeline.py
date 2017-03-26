@@ -18,8 +18,16 @@ class Vehicle():
         self.heatmap = []
         self.frame   = 0
         self.bbox_list = []
+        self.img_list = []
+        self.img_heat = []
 
 vehicle          = Vehicle()
+
+def draw_boxes(img, bbox_list):
+    draw_img = np.copy(img)
+    for box in bbox_list:
+        cv2.rectangle(draw_img, box[0], box[1], (0,0,255), 6)
+    return draw_img
 
 def draw_labeled_bboxes(img, labels):
     # Iterate through all detected cars
@@ -130,7 +138,6 @@ def find_cars(img, ystart, ystop, scale, svc, orient, pix_per_cell, cell_per_blo
     
 def image_test(file_path):
     img          = mpimg.imread(file_path)
-#    img          = cv2.undistort(np.copy(img), mtx, dist, None, mtx)
 
     return process_frame(img)
 
@@ -148,36 +155,48 @@ def process_frame(img):
     spatial_size    = (32,32)
     hist_bins       = 32
 
-    if vehicle.frame == 0:
-        scale  = 1.5
-        out_img, vehicle.bbox_list = find_cars(img, ystart, ystop, scale, svc, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
+    scale  = 1.1
+    out_img, bbox_list = find_cars(img, ystart, ystop, scale, svc, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
 
-        if verbose:
-            plt.imshow(out_img)
-            plt.savefig(path_out+"result_find_cars_scale1.jpg")
-            plt.show()
-            plt.close()
+    if verbose:
+        plt.imshow(out_img)
+        plt.savefig(path_out+"result_find_cars_scale1.jpg")
+        plt.show()
+        plt.close()
 
-        scale  = 1.1
-        out_img, bbox_list2 = find_cars(img, ystart, ystop, scale, svc, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
-        vehicle.bbox_list += bbox_list2
+    scale  = 1.5
+    out_img, bbox_list2 = find_cars(img, ystart, ystop, scale, svc, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
+    bbox_list += bbox_list2
 
-        if verbose:
-            plt.imshow(out_img)
-            plt.savefig(path_out+"result_find_cars_scale2.jpg")
-            plt.show()
-            plt.close()
+    if verbose:
+        plt.imshow(out_img)
+        plt.savefig(path_out+"result_find_cars_scale2.jpg")
+        plt.show()
+        plt.close()
 
-    vehicle.frame += 1
-    if vehicle.frame == 10:
-        vehicle.frame = 0
+        out_img = draw_boxes(img, bbox_list)
+        vehicle.img_list.append(out_img)
+        plt.imshow(out_img)
+        plt.savefig(path_out+"result_find_cars_combined.jpg")
+        plt.show()
+        plt.close()
 
     # tip from udacity class
     from scipy.ndimage.measurements import label
 
     heatmap = np.zeros_like(img[:,:,0]).astype(np.float)
-    heatmap = creat_heatmap(heatmap, vehicle.bbox_list)
-    heatmap = apply_threshold(heatmap, 3)
+    heatmap = creat_heatmap(heatmap, bbox_list)
+
+    if verbose:
+        vehicle.img_heat.append(np.copy(heatmap))
+        
+    heatmap = apply_threshold(heatmap, 2)
+
+    vehicle.heatmap.append(np.copy(heatmap))
+    if len(vehicle.heatmap) == 6:
+        del vehicle.heatmap[0]
+
+    heatmap = apply_threshold(np.sum(vehicle.heatmap, axis=0), 4)
     heatmap = np.clip(heatmap, 0, 255)
     labels  = label(heatmap)
     print(labels[1], 'cars found')
@@ -185,22 +204,54 @@ def process_frame(img):
     # put boxes around labels
     draw_img = draw_labeled_bboxes(np.copy(img), labels)
 
+    if verbose and vehicle.frame == 5:
+        f, axarr = plt.subplots(6, 2, figsize=(20, 60))
+        plt.subplots_adjust(top=1.5)
+        for idx, img in enumerate(vehicle.img_list):
+            axarr[idx, 0].axis("off")
+            axarr[idx, 0].imshow(img)
+            if idx == 0:
+                axarr[idx, 0].set_title('Boxes drawn', fontsize=40)
+            axarr[idx, 1].axis("off")
+            axarr[idx, 1].imshow(vehicle.img_heat[idx], cmap='hot')
+            if idx == 0:
+                axarr[0, 1].axis("off")
+                axarr[0, 1].set_title('Heat Map', fontsize=40)
+
+        f.tight_layout()
+        plt.savefig(path_out+"result_heatmap_six_frames.jpg", bbox_inches="tight", pad_inches = 0)
+        plt.show()
+        plt.close()
+
+        fig = plt.figure()
+        plt.subplot(121)
+        plt.imshow(draw_img)
+        plt.title('Boxes after six frames')
+        plt.subplot(122)
+        plt.imshow(labels[0], cmap='gray')
+        plt.title('Gray labels')
+        fig.tight_layout()
+        plt.savefig(path_out+"result_boxes_six_frames.jpg")
+        plt.show()
+        plt.close()
+
     if verbose:
         fig = plt.figure()
         plt.subplot(131)
         plt.imshow(draw_img)
-        plt.title('Car Positions')
+        plt.title('Boxes after six frames')
         plt.subplot(132)
-        plt.imshow(heatmap, cmap='hot')
-        plt.title('Heat Map')
-        plt.subplot(133)
         plt.imshow(labels[0], cmap='gray')
         plt.title('Gray labels')
+        plt.subplot(133)
+        plt.imshow(heatmap, cmap='hot')
+        plt.title('Heat map')
         fig.tight_layout()
         plt.savefig(path_out+"result_heatmap.jpg")
         plt.show()
         plt.close()
     
+    vehicle.frame += 1
     return draw_img
 
 if __name__ == "__main__":
