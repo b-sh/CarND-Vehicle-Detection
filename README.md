@@ -86,19 +86,33 @@ Actually used the hog sub-sampling introduced in udacity class in module pipelin
 overlapping window. I have tried different scales and overlaps which led to different false positiv and multiple detection which are later handled and filtered by the heatmap approach.
 
 Basically the choice at the end was using two different scaling factors and just kept stepping by two cells with overlap of 75%, which deliverd sufficient result covering the car.
+The two scales were meant to capture cars far away delivering more detections
+
+![scale1](output_images/result_find_cars_scale1_test3.jpg)
+
+and more near
+
+![scale2](output_images/result_find_cars_scale2_test3.jpg)
+
+which delivers more confidence that there is an vehicle for later heatmap thresholding when combined.
+
+![scale2](output_images/result_find_cars_combined_test3.jpg)
 
 #### Examples of pipeline test images and optimizing performance of classifier
 
 As mentioned before performance was improved by not applying hog extraction on each window instead for the whole lower part. Hog features were created of all three
 channels of the color conversion and combined with spatial binning and color histogram features as input for the pipeline setup of the classifier (see train.py).
 Each hit was recorded as found box. This can be seen in following examples. This results is influenced by different scaling and overlapping cell steps. 
-Furthermore only each 10th frame was evaluated in the video processing.
 
-Example result:
+Example result for test1.jpg:
 
 ![scale1](output_images/result_find_cars_scale1.jpg)
 
 ![scale2](output_images/result_find_cars_scale2.jpg)
+
+Combined:
+
+![scale3](output_images/result_find_cars_combined.jpg)
 
 ### Video
 
@@ -108,11 +122,17 @@ Link [project video](./result_project_video.mp4)
 
 ####  Filter of false positives and multiple detection due to overlapping
 
-The successfully classified windows boxes (from both scale searches) were sampled to a heatmap which was further tresholded to remove false positives since car 
-has more detected windows. In next step heatmap is labeled with `scipy.ndimage.measurements.label()`.
+The successfully classified windows boxes (from both scale searches) were sampled to a heatmap for six frames which were further tresholded to remove false positives since car 
+has more detected windows.
+
+![heatmap](output_images/result_heatmap_six_frames.jpg)
+
+In next step heatmap is labeled with `scipy.ndimage.measurements.label()`.
 Based on this labels bounding boxes have been constructed see image below.
 
-![heatmap](output_images/result_heatmap.jpg)
+![heatmap](output_images/result_boxes_six_frames.jpg)
+
+This smoothes the overall detection.
 
 ---
 
@@ -123,5 +143,3 @@ The classification itself needs good generalized features of a car in different 
 Maybe combining different color spaces or even use further sensors to detect cars would be further supportive for sanity check of possible cars. Furthermore when the cars could 
 communicate with each other they might get more information of the world around them. 
 The performance itself can be improved by parallelizing the window analysis even in real time.
-
-Open points: not yet clear why undistortion screws up the detection.
